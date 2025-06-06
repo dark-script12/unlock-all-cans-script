@@ -1,16 +1,21 @@
-local player = game.Players.LocalPlayer
+-- Load Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- Find Cans folder anywhere
-local function findCansFolder()
-    for _, descendant in pairs(game:GetDescendants()) do
-        if descendant:IsA("Folder") and descendant.Name == "Cans" then
-            return descendant
-        end
-    end
-    return nil
-end
+-- Create Main Window
+local Window = Rayfield:CreateWindow({
+    Name = "dark hub",
+    LoadingTitle = "Initializing...",
+    LoadingSubtitle = "",
+    ConfigurationSaving = {
+        Enabled = false
+    },
+    Discord = {
+        Enabled = false
+    },
+    KeySystem = false
+})
 
--- Get all BaseParts inside folder (including nested)
+-- Helper Functions
 local function getAllBaseParts(folder)
     local parts = {}
     for _, item in pairs(folder:GetDescendants()) do
@@ -21,103 +26,273 @@ local function getAllBaseParts(folder)
     return parts
 end
 
--- Teleport to a part safely
 local function teleportToPart(part)
+    local player = game.Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoid = character:WaitForChild("Humanoid")
     local hrp = character:WaitForChild("HumanoidRootPart")
 
-    -- Fix: stand up if seated
     if humanoid.Sit then
         humanoid.Sit = false
         task.wait(0.1)
     end
 
-    local halfHeight = part.Size.Y / 2
-    local offset = Vector3.new(0, halfHeight + 3, 0)
+    local offset = Vector3.new(0, part.Size.Y / 2 + 3, 0)
     hrp.CFrame = part.CFrame + offset
 end
 
--- GUI setup
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "CansTeleporterGui"
-screenGui.Parent = player:WaitForChild("PlayerGui")
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 400)
-frame.Position = UDim2.new(0, 10, 0, 10)
-frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-frame.BorderSizePixel = 0
-frame.Parent = screenGui
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Text = "Cans Teleporter"
-title.BackgroundTransparency = 1
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 20
-title.Parent = frame
-
-local autoButton = Instance.new("TextButton")
-autoButton.Size = UDim2.new(1, -20, 0, 40)
-autoButton.Position = UDim2.new(0, 10, 0, 50)
-autoButton.Text = "Auto Teleport All"
-autoButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-autoButton.TextColor3 = Color3.new(1, 1, 1)
-autoButton.Font = Enum.Font.SourceSansBold
-autoButton.TextSize = 18
-autoButton.Parent = frame
-
-local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(1, -20, 1, -110)
-scrollFrame.Position = UDim2.new(0, 10, 0, 100)
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-scrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-scrollFrame.BorderSizePixel = 0
-scrollFrame.Parent = frame
-
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 5)
-layout.Parent = scrollFrame
-
--- Get cans and populate GUI
-local cansFolder = findCansFolder()
-if not cansFolder then
-    warn("No 'Cans' folder found anywhere!")
-    title.Text = "No 'Cans' folder found!"
-    return
-end
-
-local canParts = getAllBaseParts(cansFolder)
-if #canParts == 0 then
-    warn("No BaseParts in 'Cans' folder!")
-    title.Text = "No cans found!"
-    return
-end
-
--- Create buttons for each can
-for _, canPart in ipairs(canParts) do
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -10, 0, 30)
-    button.Text = canPart.Name
-    button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-    button.TextColor3 = Color3.new(1, 1, 1)
-    button.Font = Enum.Font.SourceSans
-    button.TextSize = 18
-    button.Parent = scrollFrame
-
-    button.MouseButton1Click:Connect(function()
-        teleportToPart(canPart)
-    end)
-end
-
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #canParts * 35)
-
--- Auto teleport button logic
-autoButton.MouseButton1Click:Connect(function()
-    for _, canPart in ipairs(canParts) do
-        teleportToPart(canPart)
-        task.wait(1) -- 1-second delay between teleports
+local function findFolderByName(name)
+    for _, descendant in pairs(game:GetDescendants()) do
+        if descendant:IsA("Folder") and descendant.Name == name then
+            return descendant
+        end
     end
-end)
+    return nil
+end
+
+-- Clovers Tab
+local CloversTab = Window:CreateTab("Clovers", 4483362458)
+local autoCollectClovers = false
+local autoRespawnCollect = false
+local player = game.Players.LocalPlayer
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local respawnEvent = replicatedStorage:FindFirstChild("RespawnClovers")
+
+local function collectClovers()
+    local cloversFolder = findFolderByName("Clovers")
+    if cloversFolder then
+        local cloverParts = getAllBaseParts(cloversFolder)
+        for _, part in ipairs(cloverParts) do
+            if not autoCollectClovers and not autoRespawnCollect then break end
+            teleportToPart(part)
+            task.wait(0.05)
+        end
+    else
+        warn("No Clovers folder found!")
+    end
+end
+
+local function autoCollectCloversLoop()
+    while autoCollectClovers do
+        collectClovers()
+        task.wait(0.2)
+    end
+end
+
+local function autoRespawnCollectLoop()
+    while autoRespawnCollect do
+        collectClovers()
+        if respawnEvent then
+            respawnEvent:FireServer()
+        else
+            warn("No RespawnClovers RemoteEvent found!")
+        end
+        task.wait(0.2)
+    end
+end
+
+CloversTab:CreateToggle({
+    Name = "Auto Collect Clovers",
+    CurrentValue = false,
+    Flag = "AutoCollectClovers",
+    Callback = function(state)
+        autoCollectClovers = state
+        if state then
+            task.spawn(autoCollectCloversLoop)
+        end
+    end
+})
+
+CloversTab:CreateButton({
+    Name = "Respawn Clovers",
+    Callback = function()
+        if respawnEvent then
+            respawnEvent:FireServer()
+        else
+            warn("No RespawnClovers RemoteEvent found!")
+        end
+    end
+})
+
+CloversTab:CreateToggle({
+    Name = "Start Auto Respawn & Collect",
+    CurrentValue = false,
+    Flag = "AutoRespawnCollect",
+    Callback = function(state)
+        autoRespawnCollect = state
+        if state then
+            task.spawn(autoRespawnCollectLoop)
+        end
+    end
+})
+
+-- Cans Tab
+local CansTab = Window:CreateTab("Cans", 4483362458)
+local autoTeleportCans = false
+
+local function autoTeleportCansLoop()
+    while autoTeleportCans do
+        local cansFolder = findFolderByName("Cans")
+        if cansFolder then
+            local canParts = getAllBaseParts(cansFolder)
+            for _, part in ipairs(canParts) do
+                if not autoTeleportCans then break end
+                teleportToPart(part)
+                task.wait(1)
+            end
+        else
+            warn("No Cans folder found!")
+        end
+        task.wait(1)
+    end
+end
+
+CansTab:CreateToggle({
+    Name = "Auto Teleport All Cans",
+    CurrentValue = false,
+    Flag = "AutoTeleportCans",
+    Callback = function(state)
+        autoTeleportCans = state
+        if state then
+            task.spawn(autoTeleportCansLoop)
+        end
+    end
+})
+
+CansTab:CreateButton({
+    Name = "Load Can Buttons",
+    Callback = function()
+        local cansFolder = findFolderByName("Cans")
+        if not cansFolder then
+            Rayfield:Notify({
+                Title = "Cans Teleporter",
+                Content = "No 'Cans' folder found!",
+                Duration = 4
+            })
+            return
+        end
+
+        local canParts = getAllBaseParts(cansFolder)
+        if #canParts == 0 then
+            Rayfield:Notify({
+                Title = "Cans Teleporter",
+                Content = "No cans found!",
+                Duration = 4
+            })
+            return
+        end
+
+        for _, part in ipairs(canParts) do
+            CansTab:CreateButton({
+                Name = "Teleport to " .. part.Name,
+                Callback = function()
+                    teleportToPart(part)
+                end
+            })
+        end
+
+        Rayfield:Notify({
+            Title = "Cans Teleporter",
+            Content = "Loaded " .. #canParts .. " cans!",
+            Duration = 3
+        })
+    end
+})
+
+-- Stickmen Tab
+local StickmenTab = Window:CreateTab("Stickmen", 4483362458)
+local autoTeleportStickmen = false
+
+local function autoTeleportStickmenLoop()
+    while autoTeleportStickmen do
+        local stickmenFolder = findFolderByName("Stickmen")
+        if stickmenFolder then
+            local stickmenParts = getAllBaseParts(stickmenFolder)
+            for _, part in ipairs(stickmenParts) do
+                if not autoTeleportStickmen then break end
+                teleportToPart(part)
+                task.wait(1)
+            end
+        else
+            warn("No Stickmen folder found!")
+        end
+        task.wait(1)
+    end
+end
+
+StickmenTab:CreateToggle({
+    Name = "Auto Teleport All Stickmen",
+    CurrentValue = false,
+    Flag = "AutoTeleportStickmen",
+    Callback = function(state)
+        autoTeleportStickmen = state
+        if state then
+            task.spawn(autoTeleportStickmenLoop)
+        end
+    end
+})
+
+StickmenTab:CreateButton({
+    Name = "Load Stickman Buttons",
+    Callback = function()
+        local stickmenFolder = findFolderByName("Stickmen")
+        if not stickmenFolder then
+            Rayfield:Notify({
+                Title = "Stickmen Teleporter",
+                Content = "No 'Stickmen' folder found!",
+                Duration = 4
+            })
+            return
+        end
+
+        local stickmenParts = getAllBaseParts(stickmenFolder)
+        if #stickmenParts == 0 then
+            Rayfield:Notify({
+                Title = "Stickmen Teleporter",
+                Content = "No stickmen found!",
+                Duration = 4
+            })
+            return
+        end
+
+        for _, part in ipairs(stickmenParts) do
+            StickmenTab:CreateButton({
+                Name = "Teleport to " .. part.Name,
+                Callback = function()
+                    teleportToPart(part)
+                end
+            })
+        end
+
+        Rayfield:Notify({
+            Title = "Stickmen Teleporter",
+            Content = "Loaded " .. #stickmenParts .. " stickmen!",
+            Duration = 3
+        })
+    end
+})
+
+-- Teleport to all Gubbys Tab
+local GubbyTab = Window:CreateTab("Teleport to all Gubbys", 4483362458)
+
+GubbyTab:CreateButton({
+    Name = "Teleport to all Gubbys",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+        local toFindFolder = workspace:FindFirstChild("ToFind")
+        if not toFindFolder then
+            warn("ToFind folder not found!")
+            return
+        end
+
+        for _, item in pairs(toFindFolder:GetChildren()) do
+            if item:IsA("BasePart") then
+                humanoidRootPart.CFrame = item.CFrame
+                task.wait(1)
+            end
+        end
+    end
+})
