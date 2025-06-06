@@ -1,0 +1,123 @@
+local player = game.Players.LocalPlayer
+
+-- Find Cans folder anywhere
+local function findCansFolder()
+    for _, descendant in pairs(game:GetDescendants()) do
+        if descendant:IsA("Folder") and descendant.Name == "Cans" then
+            return descendant
+        end
+    end
+    return nil
+end
+
+-- Get all BaseParts inside folder (including nested)
+local function getAllBaseParts(folder)
+    local parts = {}
+    for _, item in pairs(folder:GetDescendants()) do
+        if item:IsA("BasePart") then
+            table.insert(parts, item)
+        end
+    end
+    return parts
+end
+
+-- Teleport to a part safely
+local function teleportToPart(part)
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local hrp = character:WaitForChild("HumanoidRootPart")
+
+    -- Fix: stand up if seated
+    if humanoid.Sit then
+        humanoid.Sit = false
+        task.wait(0.1)
+    end
+
+    local halfHeight = part.Size.Y / 2
+    local offset = Vector3.new(0, halfHeight + 3, 0)
+    hrp.CFrame = part.CFrame + offset
+end
+
+-- GUI setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CansTeleporterGui"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 250, 0, 400)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Text = "Cans Teleporter"
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
+title.Parent = frame
+
+local autoButton = Instance.new("TextButton")
+autoButton.Size = UDim2.new(1, -20, 0, 40)
+autoButton.Position = UDim2.new(0, 10, 0, 50)
+autoButton.Text = "Auto Teleport All"
+autoButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+autoButton.TextColor3 = Color3.new(1, 1, 1)
+autoButton.Font = Enum.Font.SourceSansBold
+autoButton.TextSize = 18
+autoButton.Parent = frame
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -20, 1, -110)
+scrollFrame.Position = UDim2.new(0, 10, 0, 100)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+scrollFrame.BorderSizePixel = 0
+scrollFrame.Parent = frame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.Parent = scrollFrame
+
+-- Get cans and populate GUI
+local cansFolder = findCansFolder()
+if not cansFolder then
+    warn("No 'Cans' folder found anywhere!")
+    title.Text = "No 'Cans' folder found!"
+    return
+end
+
+local canParts = getAllBaseParts(cansFolder)
+if #canParts == 0 then
+    warn("No BaseParts in 'Cans' folder!")
+    title.Text = "No cans found!"
+    return
+end
+
+-- Create buttons for each can
+for _, canPart in ipairs(canParts) do
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -10, 0, 30)
+    button.Text = canPart.Name
+    button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.Font = Enum.Font.SourceSans
+    button.TextSize = 18
+    button.Parent = scrollFrame
+
+    button.MouseButton1Click:Connect(function()
+        teleportToPart(canPart)
+    end)
+end
+
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #canParts * 35)
+
+-- Auto teleport button logic
+autoButton.MouseButton1Click:Connect(function()
+    for _, canPart in ipairs(canParts) do
+        teleportToPart(canPart)
+        task.wait(1) -- 1-second delay between teleports
+    end
+end)
