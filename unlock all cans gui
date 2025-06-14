@@ -1,7 +1,7 @@
--- Load Rayfield UI Library
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- Create Main Window
+
 local Window = Rayfield:CreateWindow({
     Name = "dark hub",
     LoadingTitle = "Initializing...",
@@ -50,7 +50,7 @@ local function findFolderByName(name)
     return nil
 end
 
--- Clovers Tab
+
 local CloversTab = Window:CreateTab("Clovers", 4483362458)
 local autoCollectClovers = false
 local autoRespawnCollect = false
@@ -126,7 +126,7 @@ CloversTab:CreateToggle({
     end
 })
 
--- Cans Tab
+
 local CansTab = Window:CreateTab("Cans", 4483362458)
 local autoTeleportCans = false
 
@@ -199,7 +199,7 @@ CansTab:CreateButton({
     end
 })
 
--- Stickmen Tab
+
 local StickmenTab = Window:CreateTab("Stickmen", 4483362458)
 local autoTeleportStickmen = false
 
